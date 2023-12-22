@@ -1,0 +1,328 @@
+<html>
+<head>
+    <title>IoT Monitor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="style.css">
+    <script type = "text/javascript">
+        setInterval(function (){
+            var xhttp = new XMLHttpRequest();
+            xhttp.onreadystatechange = function() {
+                    if (this.readyState == 4 && this.status == 200) {
+
+                        var api_data = JSON.parse(this.responseText);
+
+                        console.log(api_data)
+
+                        if ("grid_voltage" in api_data){
+                            var adc_values = document.getElementById('adc_values');
+
+                            document.getElementById('grid_voltage').innerHTML = api_data["grid_voltage"] + " V";
+                            document.getElementById('ct1_current').innerHTML = api_data["ct1_current"] + " A";
+                            document.getElementById('ct2_current').innerHTML = api_data["ct2_current"] + " A";
+                            document.getElementById('ct3_current').innerHTML = api_data["ct3_current"] + " A";
+                            document.getElementById('ct1_power').innerHTML = api_data["ct1_power"] + " W";
+                            document.getElementById('ct2_power').innerHTML = api_data["ct2_power"] + " W";
+                            document.getElementById('ct3_power').innerHTML = api_data["ct3_power"] + " W";
+                            document.getElementById('ct1_pf').innerHTML = api_data["ct1_pf"];
+                            document.getElementById('ct2_pf').innerHTML = api_data["ct2_pf"];
+                            document.getElementById('ct3_pf').innerHTML = api_data["ct3_pf"];
+                            document.getElementById('grid_frequency').innerHTML = api_data["grid_frequency"] + " Hz";
+                            document.getElementById('cumulative_total_energy1').innerHTML = api_data["cumulative_total_energy1"] + " kWh";
+                            document.getElementById('cumulative_total_energy2').innerHTML = api_data["cumulative_total_energy2"] + " kWh";
+                            document.getElementById('cumulative_total_energy3').innerHTML = api_data["cumulative_total_energy3"] + " kWh";
+
+                            adc_values.style.display = "table";
+                        }
+
+                        if ("bmp280_temperature" in api_data){
+                            var bmp280_values = document.getElementById('bmp280_values');
+
+                            document.getElementById('bmp280_temperature').innerHTML = api_data["bmp280_temperature"] + "&deg;C";
+                            document.getElementById('bmp280_pressure').innerHTML = api_data["bmp280_pressure"] + " hPa";
+                            
+                            bmp280_values.style.display = "table";
+                        }
+
+                        if ("bmp180_temperature" in api_data){
+                            var bmp180_values = document.getElementById('bmp180_values');
+
+                            document.getElementById('bmp180_temperature').innerHTML = api_data["bmp180_temperature"] + "&deg;C";
+                            document.getElementById('bmp180_pressure').innerHTML = api_data["bmp180_pressure"] + " hPa";
+
+                            bmp180_values.style.display = "table";
+                        }
+
+                        if ("aht10_temperature" in api_data){
+                            var aht10_values = document.getElementById('aht10_values');
+
+                            document.getElementById('aht10_temperature').innerHTML = api_data["aht10_temperature"] + "&deg;C";
+                            document.getElementById('aht10_humidity').innerHTML = api_data["aht10_humidity"] + " hPa";
+
+                            aht10_values.style.display = "table";
+                        }
+
+                        if ("pulse_detector_power" in api_data){
+                            var pulse_values = document.getElementById('pulse_values');
+
+                            document.getElementById('pulse_detector_power').innerHTML = api_data["pulse_detector_power"] + " W";
+                            document.getElementById('pulse_cumulative_total_energy').innerHTML = api_data["pulse_cumulative_total_energy"] + " kWh";
+
+                            pulse_values.style.display = "table";
+                        }
+
+                        if ("lm75_temperature" in api_data){
+                            var lm75_values = document.getElementById('lm75_values');
+
+                            document.getElementById('lm75_temperature').innerHTML = api_data["lm75_temperature"] + "&deg;C";
+
+                            lm75_values.style.display = "table";
+                        }
+
+                        if ("AM2320_temperature" in api_data){
+                            var am2320_values = document.getElementById('am2320_values');
+
+                            document.getElementById('AM2320_temperature').innerHTML = api_data["AM2320_temperature"] + "&deg;C";
+                            document.getElementById('AM2320_humidity').innerHTML = api_data["AM2320_humidity"] + " &percnt;";
+
+                            am2320_values.style.display = "table";
+                        }
+
+                        if ("dht_temperature" in api_data){
+                            var dht_values = document.getElementById('dht_values');
+
+                            document.getElementById('dht_temperature').innerHTML = api_data["dht_temperature"] + "&deg;C";
+                            document.getElementById('dht_humidity').innerHTML = api_data["dht_humidity"] + " &percnt;";
+
+                            dht_values.style.display = "table";
+                        }
+
+                        document.getElementById('battery_voltage').innerHTML = api_data["battery_voltage"] + " V";
+
+                        document.getElementById('current_time').innerHTML = api_data["current_time"];
+                        document.getElementById('Last_update_time').innerHTML = api_data["last_update_time"];
+                        document.getElementById('startup_time').innerHTML = api_data["startup_time"];
+                        document.getElementById('uptime').innerHTML = api_data["uptime"];
+                    }
+                };
+            xhttp.open("GET", "/get_data", true);
+            xhttp.send();
+        }, 5000);
+
+        function switch_tab(event){
+            var monitor_tab = document.getElementById('monitor_tab');
+            var settings_tab = document.getElementById('settings_tab');
+
+            if(event.innerHTML == "Monitor"){
+                settings_tab.style.display = "None";
+                monitor_tab.style.display = "block";
+            }
+            if(event.innerHTML == "Settings"){
+                settings_tab.style.display = "block";
+                monitor_tab.style.display = "None";
+            }
+        };
+    </script>
+</head>
+<body>
+    <H2>IoT Monitor</H2>
+    <div id="monitor" onclick="switch_tab(this)" value="monitor">Monitor</div>
+    <div id="settings" onclick="switch_tab(this)" value="settings">Settings</div>
+    <div id="content">
+        <div id="monitor_tab">
+            <table id="adc_values" class="info_table" style="display:none">
+                <tr>
+                    <td>Grid Voltage:</td>
+                    <td id="grid_voltage">%grid_voltage% V</td>
+                </tr>
+                <tr>
+                    <td>CT1 Current:</td>
+                    <td id="ct1_current">%ct1_current% A</td>
+                </tr>
+                <tr>
+                    <td>CT2 Current:</td>
+                    <td id="ct2_current">%ct2_current% A</td>
+                </tr>
+                <tr>
+                    <td>CT3 Current:</td>
+                    <td id="ct3_current">%ct3_current% A</td>
+                </tr>
+                <tr>
+                    <td>CT1 Power:</td>
+                    <td id="ct1_power">%ct1_power% W</td>
+                </tr>
+                <tr>
+                    <td>CT2 Power:</td>
+                    <td id="ct2_power">%ct2_power% W</td>
+                </tr>
+                <tr>
+                    <td>CT3 Power:</td>
+                    <td id="ct3_power">%ct3_power% W</td>
+                </tr>
+                <tr>
+                    <td>CT1 Power Factor:</td>
+                    <td id="ct1_pf">%ct1_pf%</td>
+                </tr>
+                <tr>
+                    <td>CT2 Power Factor:</td>
+                    <td id="ct2_pf">%ct2_pf%</td>
+                </tr>
+                <tr>
+                    <td>CT3 Power Factor:</td>
+                    <td id="ct3_pf">%ct3_pf%</td>
+                </tr>
+                <tr>
+                    <td>Grid Frequency:</td>
+                    <td id="grid_frequency">%grid_frequency% Hz</td>
+                </tr>
+                <tr>
+                    <td>Cumulative Total Energy 1:</td>
+                    <td id="cumulative_total_energy1">%cumulative_total_energy1% kWh</td>
+                </tr>
+                <tr>
+                    <td>Cumulative Total Energy 2:</td>
+                    <td id="cumulative_total_energy2">%cumulative_total_energy2% kWh</td>
+                </tr>
+                <tr>
+                    <td>Cumulative Total Energy 3:</td>
+                    <td id="cumulative_total_energy3">%cumulative_total_energy3% kWh</td>
+                </tr>
+            </table>
+
+            <table id="pulse_values" class="info_table" style="display:none">
+                <tr>
+                    <td>Pulse Detector Power:</td>
+                    <td id="pulse_detector_power">%pulse_detector_power% W</td>
+                </tr>
+                <tr>
+                    <td>Pulse Cumulative Energy:</td>
+                    <td id="pulse_cumulative_total_energy">%pulse_cumulative_total_energy% kWh</td>
+                </tr>
+            </table>
+
+            <table id="bmp280_values" class="info_table" style="display:none">
+                <tr>
+                    <td>BMP280 Temperature:</td>
+                    <td id="bmp280_temperature">%bmp280_temperature%</td>
+                </tr>
+                <tr>
+                    <td>BMP280 Pressure:</td>
+                    <td id="bmp280_pressure">%bmp280_pressure% hPa</td>
+                </tr>
+            </table>
+
+            <table id="bmp180_values" class="info_table" style="display:none">
+                <tr>
+                    <td>BMP180 Temperature:</td>
+                    <td id="bmp180_temperature">%bmp180_temperature%</td>
+                </tr>
+                <tr>
+                    <td>BMP180 Pressure:</td>
+                    <td id="bmp180_pressure">%bmp180_pressure% hPa</td>
+                </tr>
+            </table>
+
+            <table id="aht10_values" class="info_table" style="display:none">
+                <tr>
+                    <td>AHT10 Temperature:</td>
+                    <td id="aht10_temperature">%aht10_temperature%</td>
+                </tr>
+                <tr>
+                    <td>AHT10 Humidity:</td>
+                    <td id="aht10_humidity">%aht10_humidity% &percnt;</td>
+                </tr>
+            </table>
+
+            <table id="am2320_values" class="info_table" style="display:none">
+                <tr>
+                    <td>AM2320 Temperature:</td>
+                    <td id="AM2320_temperature">%AM2320_temperature%</td>
+                </tr>
+                <tr>
+                    <td>AM2320 Humidity:</td>
+                    <td id="AM2320_humidity">%AM2320_humidity% &percnt;</td>
+                </tr>
+            </table>
+
+            <table id="dht_values" class="info_table" style="display:none">
+                <tr>
+                    <td>DHT Temperature:</td>
+                    <td id="dht_temperature">%dht_temperature%</td>
+                </tr>
+                <tr>
+                    <td>DHT Humidity:</td>
+                    <td id="dht_humidity">%dht_humidity% &percnt;</td>
+                </tr>
+            </table>
+
+            <table id="lm75_values" class="info_table" style="display:none">
+                <tr>
+                    <td>LM75 Temperature:</td>
+                    <td id="lm75_temperature">%lm75_temperature%</td>
+                </tr>
+                
+            </table>
+
+            <table id="other_values" class="info_table">
+                <tr>
+                    <td>Battery Voltage:</td>
+                    <td id="battery_voltage">%battery_voltage% V</td>
+                </tr>
+                <tr>
+                    <td>Current Time:</td>
+                    <td id="current_time">%current_time%</td>
+                </tr>
+                <tr>
+                    <td>Last Update Time:</td>
+                    <td id="Last_update_time">%Last_update_time%</td>
+                </tr>
+                <tr>
+                    <td>Startup Time:</td>
+                    <td id="startup_time">%startup_time%</td>
+                </tr>
+                <tr>
+                    <td>Uptime:</td>
+                    <td id="uptime">%uptime%</td>
+                </tr>
+            </table>
+        </div>
+
+        <div id="settings_tab" style="display:none">
+            <form id="settings_form" action="/" method="post">
+                <label for="host" class="form_label">Host Name:</label>
+                <input type="text" id="host" name="host" class="form_item" value="%host%"><br>
+
+                <label for="ssid" class="form_label">SSID:</label>
+                <input type="text" id="ssid" name="ssid" class="form_item" value="%ssid%"><br>
+
+                <label for="password" class="form_label">Password:</label>
+                <input type="text" id="password" name="password" class="form_item" value="%password%"><br>
+
+                <label for="mqtt_host" class="form_label">MQTT Host:</label>
+                <input type="text" id="mqtt_host" name="mqtt_host" class="form_item" value="%mqtt_host%"><br>
+
+                <label for="mqtt_port" class="form_label">MQTT Port:</label>
+                <input type="number" id="mqtt_port" name="mqtt_port" class="form_item" value="%mqtt_port%"><br>
+
+                <label for="mqtt_topic" class="form_label">Topic:</label>
+                <input type="text" id="mqtt_topic" name="mqtt_topic" class="form_item" value="%mqtt_topic%"><br>
+
+                <label for="voltage_cal" class="form_label">Battery Voltage Calibration:</label>
+                <input type="number" id="voltage_cal" name="voltage_cal" class="form_item" value="%voltage_cal%"><br>
+
+                <label for="interval" class="form_label">Poll Interval:</label>
+                <input type="number" id="interval" name="interval" class="form_item" value="%interval%"><br>
+
+                <label for="discovery" class="form_label">Discovery Interval:</label>
+                <input type="number" id="discovery" name="discovery" class="form_item" value="%discovery%"><br>
+
+                <label for="persist_cumulative_interval" class="form_label">Persist Cumulative Interval:</label>
+                <input type="number" id="persist_cumulative_interval" name="persist_cumulative_interval" class="form_item" value="%persist_cumulative_interval%"><br>
+
+                <label for="wifi_timeout" class="form_label">Wifi Timeout:</label>
+                <input type="number" id="wifi_timeout" name="wifi_timeout" class="form_item" value="%wifi_timeout%"><br>
+
+                <input type="submit" value="Submit" class="form_label">
+            </form>
+        </div>
+    </div>
+</body>
