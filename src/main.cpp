@@ -28,12 +28,12 @@
 #include <M2M_LM75A.h>
 #include "LittleFS.h"
 
-#define DEVICE_NAME         "iot-monitor-5"
-#define WIFI_SSID           "Chris"
-#define WIFI_PASSWORD       "DHXSLTLPLFSL"
-#define PRIMARY_NTP_SERVER  "za.pool.ntp.org"
+#define DEVICE_NAME         "iot-monitor-1"
+#define WIFI_SSID           "LAN_2.4G"
+#define WIFI_PASSWORD       "**********"
+#define PRIMARY_NTP_SERVER  "nl.pool.ntp.org"
 #define BACKUP_NTP_SERVER   "igubu.saix.net"
-#define MQTT_BROKER         "192.168.192.5"
+#define MQTT_BROKER         "192.168.0.2"
 #define TIMEZONE_OFFSET     7200
 #define NTP_UPDATE          86400
 #define BAT_VOLTAGE_CAL     0.96 
@@ -43,8 +43,8 @@
 #define AHT10_CONNECTED     false
 #define LM75_CONNECTED      true
 #define ADC_CONNECTED       false
-#define AM2320_CONNECTED    false
-#define DHT_CONNECTED       true
+#define AM2320_CONNECTED    true
+#define DHT_CONNECTED       false
 #define PULSE_CONNECTED     false
 #define SLEEP_MODE_ACTIVE   true
 #define LEGACY_DEVICE       true
@@ -142,6 +142,9 @@ typedef struct{
     #endif
 
     float battery_voltage;
+    float rssi;
+    String ip_address;
+    String ssid;
     int last_update_time;
     int startup_time;
 }data_struct;
@@ -223,7 +226,7 @@ settings_struct settings = {
     {192,168,192,1},
     8888,
     0,
-    60,
+    300,
     600,
     43200,
     30,
@@ -471,8 +474,8 @@ void getData(){
 
     #if AM2320_CONNECTED
         if(am2320_connected){
-            data.AM2320_humidity = am2320.readHumidity();
-            data.AM2320_temperature = am2320.readTemperature();
+            data.AM2320_humidity = isnan(am2320.readHumidity()) ? 0 : am2320.readHumidity();
+            data.AM2320_temperature = isnan(am2320.readTemperature()) ? 0 : am2320.readTemperature();
         }
     #endif
 
@@ -493,6 +496,13 @@ void getData(){
     #endif
 
     data.battery_voltage = read_voltage(10);
+    data.ip_address = WiFi.localIP().toString();
+    data.rssi = WiFi.RSSI();
+    data.ssid = WiFi.SSID();
+
+    debug_print(String(data.rssi));
+    debug_print(data.ssid);
+    debug_print(data.ip_address);
 
     debug_print("Done Getting Data");
 }
@@ -504,131 +514,150 @@ void sendData(){
     #if ADC_CONNECTED
         topic = device_name + "/grid_voltage"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.grid_voltage).c_str(), String(data.grid_voltage).length());
+        pubsubClient.publish(topic.c_str(), (String(data.grid_voltage)).c_str(), String(data.grid_voltage).length());
 
         topic = device_name + "/grid_frequency"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.grid_frequency).c_str(), String(data.grid_frequency).length());
+        pubsubClient.publish(topic.c_str(), (String(data.grid_frequency)).c_str(), String(data.grid_frequency).length());
 
         topic = device_name + "/ct1_current"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct1_current).c_str(), String(data.ct1_current).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct1_current)).c_str(), String(data.ct1_current).length());
 
         topic = device_name + "/ct1_power"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct1_power).c_str(), String(data.ct1_power).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct1_power)).c_str(), String(data.ct1_power).length());
 
         topic = device_name + "/ct1_pf"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct1_pf).c_str(), String(data.ct1_pf).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct1_pf)).c_str(), String(data.ct1_pf).length());
 
         topic = device_name + "/ct2_current"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct2_current).c_str(), String(data.ct2_current).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct2_current)).c_str(), String(data.ct2_current).length());
 
         topic = device_name + "/ct2_power"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct2_power).c_str(), String(data.ct2_power).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct2_power)).c_str(), String(data.ct2_power).length());
         
         topic = device_name + "/ct2_pf"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct2_pf).c_str(), String(data.ct2_pf).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct2_pf)).c_str(), String(data.ct2_pf).length());
 
         topic = device_name + "/ct3_current"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct3_current).c_str(), String(data.ct3_current).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct3_current)).c_str(), String(data.ct3_current).length());
 
         topic = device_name + "/ct3_power"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct3_power).c_str(), String(data.ct3_power).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct3_power)).c_str(), String(data.ct3_power).length());
         
         topic = device_name + "/ct3_pf"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.ct3_pf).c_str(), String(data.ct3_pf).length());
+        pubsubClient.publish(topic.c_str(), (String(data.ct3_pf)).c_str(), String(data.ct3_pf).length());
 
         topic = device_name + "/cumulative_total_energy1"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.cumulative_total_energy1).c_str(), String(data.cumulative_total_energy1).length());
+        pubsubClient.publish(topic.c_str(), (String(data.cumulative_total_energy1)).c_str(), String(data.cumulative_total_energy1).length());
 
         topic = device_name + "/cumulative_total_energy2"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.cumulative_total_energy2).c_str(), String(data.cumulative_total_energy2).length());
+        pubsubClient.publish(topic.c_str(), (String(data.cumulative_total_energy2)).c_str(), String(data.cumulative_total_energy2).length());
 
         topic = device_name + "/cumulative_total_energy3"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.cumulative_total_energy3).c_str(), String(data.cumulative_total_energy3).length());
+        pubsubClient.publish(topic.c_str(), (String(data.cumulative_total_energy3)).c_str(), String(data.cumulative_total_energy3).length());
     #endif
     
     #if BMP280_CONNECTED
         topic = device_name + "/bmp280_temperature"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.bmp280_temperature).c_str(), String(data.bmp280_temperature).length());
+        pubsubClient.publish(topic.c_str(), (String(data.bmp280_temperature)).c_str(), String(data.bmp280_temperature).length());
 
         topic = device_name + "/bmp280_pressure"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.bmp280_pressure).c_str(), String(data.bmp280_pressure).length());
+        pubsubClient.publish(topic.c_str(), (String(data.bmp280_pressure)).c_str(), String(data.bmp280_pressure).length());
     #endif
 
     #if BMP180_CONNECTED
         topic = device_name + "/bmp180_temperature"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.bmp180_temperature).c_str(), String(data.bmp180_temperature).length());
+        pubsubClient.publish(topic.c_str(), (String(data.bmp180_temperature)).c_str(), String(data.bmp180_temperature).length());
 
         topic = device_name + "/bmp180_pressure"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.bmp180_pressure).c_str(), String(data.bmp180_pressure).length());
+        pubsubClient.publish(topic.c_str(), (String(data.bmp180_pressure)).c_str(), String(data.bmp180_pressure).length());
     #endif
 
     #if AHT10_CONNECTED
         topic = device_name + "/aht10_temperature"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.aht10_temperature).c_str(), String(data.aht10_temperature).length());
+        pubsubClient.publish(topic.c_str(), (String(data.aht10_temperature)).c_str(), String(data.aht10_temperature).length());
 
         topic = device_name + "/aht10_humidity"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.aht10_humidity).c_str(), String(data.aht10_humidity).length());
+        pubsubClient.publish(topic.c_str(), (String(data.aht10_humidity)).c_str(), String(data.aht10_humidity).length());
     #endif
 
     #if PULSE_CONNECTED
         topic = device_name + "/pulse_detector_power"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.pulse_detector_power).c_str(), String(data.pulse_detector_power).length());
+        pubsubClient.publish(topic.c_str(), (String(data.pulse_detector_power)).c_str(), String(data.pulse_detector_power).length());
 
         topic = device_name + "/pulse_cumulative_total_energy"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.pulse_cumulative_total_energy).c_str(), String(data.pulse_cumulative_total_energy).length());
+        pubsubClient.publish(topic.c_str(), (String(data.pulse_cumulative_total_energy)).c_str(), String(data.pulse_cumulative_total_energy).length());
     #endif
 
 
     #if LM75_CONNECTED
         topic = device_name + "/lm75_temperature"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.lm75_temperature).c_str(), String(data.lm75_temperature).length());
+        pubsubClient.publish(topic.c_str(), (String(data.lm75_temperature)).c_str(), String(data.lm75_temperature).length());
     #endif
 
     #if AM2320_CONNECTED
-        topic = device_name + "/am2320_temperature"; 
-        checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.AM2320_temperature).c_str(), String(data.AM2320_temperature).length());
+        if(!isnan(data.AM2320_temperature))
+        {
+            topic = device_name + "/am2320_temperature"; 
+            checkMQTT();
+            pubsubClient.publish(topic.c_str(), (String(data.AM2320_temperature)).c_str(), String(data.AM2320_temperature).length());
+            debug_print(String(data.AM2320_temperature));
+        }
 
-        topic = device_name + "/am2320_humidity"; 
-        checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.AM2320_humidity).c_str(), String(data.AM2320_humidity).length());
+        if(!isnan(data.AM2320_humidity))
+        {
+            topic = device_name + "/am2320_humidity"; 
+            checkMQTT();
+            pubsubClient.publish(topic.c_str(), (String(data.AM2320_humidity)).c_str(), String(data.AM2320_humidity).length());
+        }
     #endif
 
     #if DHT_CONNECTED
         topic = device_name + "/dht_temperature"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.dht_temperature).c_str(), String(data.dht_temperature).length());
+        pubsubClient.publish(topic.c_str(), (String(data.dht_temperature)).c_str(), String(data.dht_temperature).length());
 
         topic = device_name + "/dht_humidity"; 
         checkMQTT();
-        pubsubClient.publish(topic.c_str(), String(data.dht_humidity).c_str(), String(data.dht_humidity).length());
+        pubsubClient.publish(topic.c_str(), (String(data.dht_humidity)).c_str(), String(data.dht_humidity).length());
     #endif
 
     topic = device_name + "/battery_voltage"; 
     checkMQTT();
-    pubsubClient.publish(topic.c_str(), String(data.battery_voltage).c_str(), String(data.battery_voltage).length());
+    pubsubClient.publish(topic.c_str(), (String(data.battery_voltage)).c_str(), String(data.battery_voltage).length());
+
+    topic = device_name + "/ip_address"; 
+    checkMQTT();
+    pubsubClient.publish(topic.c_str(), (String(data.ip_address)).c_str(), String(data.ip_address).length());
+
+    topic = device_name + "/rssi"; 
+    checkMQTT();
+    pubsubClient.publish(topic.c_str(), (String(data.rssi)).c_str(), String(data.rssi).length());
+
+    topic = device_name + "/ssid"; 
+    checkMQTT();
+    pubsubClient.publish(topic.c_str(), (String(data.ssid)).c_str(), String(data.ssid).length());
 
     debug_print("Done Sending Data");
 }
@@ -687,15 +716,18 @@ void sendMQTTDiscovery(){
             "dht_humidity",
         #endif
         
-        "battery_voltage"
+        "battery_voltage",
+        "ip_address",
+        "rssi",
+        "ssid"
     };
 
     String device_name = String(settings.hostname);
 
     for(unsigned int i = 0 ; i < ((sizeof(base))/(sizeof(String))) ; i++)
     {
-        const size_t capacity = (20*JSON_ARRAY_SIZE(1) + 2*JSON_OBJECT_SIZE(1) + 2*20*JSON_OBJECT_SIZE(2) + 
-                            JSON_OBJECT_SIZE(3) + 2*JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5))*2;
+        const size_t capacity = (21*JSON_ARRAY_SIZE(1) + 2*JSON_OBJECT_SIZE(1) + 2*20*JSON_OBJECT_SIZE(2) + 
+                            JSON_OBJECT_SIZE(3) + 5*JSON_OBJECT_SIZE(4) + JSON_OBJECT_SIZE(5))*2;
         DynamicJsonDocument dataObject(capacity);
 
         String underscored = base[i];
@@ -761,8 +793,14 @@ void sendMQTTDiscovery(){
             dataObject["device_class"] =  "battery";
             dataObject["unit_of_measurement"] = "%";
         }
+
+        if(underscored.lastIndexOf("rssi") != -1)
+        {
+            dataObject["device_class"] =  "signal_strength";
+            dataObject["unit_of_measurement"] = "dBm";
+        }
         
-        dataObject["json_attributes_topic"] = device_name + "/" + underscored;
+        dataObject["json_attributes_topic"] = device_name + "/" + underscored + "/attr";
         dataObject["state_topic"] = device_name + "/" + underscored;
         
         JsonObject device = dataObject.createNestedObject("device");
@@ -1066,10 +1104,12 @@ void notFound(AsyncWebServerRequest *request) {
 
 void setup() {
     Serial.begin(115200);
+    Wire.begin(SDA_PIN, SCL_PIN);
+
     EEPROM.begin(512);
     EEPROM.get(0x0, settings); 
     
-    if(!isnan(settings.pulse_cumulative_total_energy)){
+    if(isnan(settings.timeout)){
         debug_print("Error reading settings from EEPROM");
         EEPROM.put(0x0, settings);
         EEPROM.commit();
@@ -1077,9 +1117,7 @@ void setup() {
 
     debug_print("");
     debug_print("Device boot.");
-
-    Wire.begin(SDA_PIN, SCL_PIN);
-
+    
     pinMode(LED_PIN, OUTPUT);
     pinMode(IO6_PIN, OUTPUT);
     pinMode(IO15_PIN, INPUT);
@@ -1281,6 +1319,9 @@ void setup() {
         #endif
 
         0.0,
+        0.0,
+        "",
+        "",
         current_time,
         current_time
     };
@@ -1382,10 +1423,13 @@ void setup() {
             settings.cumulative_total_energy3 = data.cumulative_total_energy3;
         #endif
 
+        #if SLEEP_MODE_ACTIVE
+            rtc_data->run_count = 0;
+            rtcMemory.save();
+        #endif
+
         EEPROM.put(0x0, settings);
         EEPROM.commit();
-        rtc_data->run_count = 0;
-        rtcMemory.save();
 
         request->send(LittleFS, "/index.html", String(), false, processor);
         ESP.restart();
@@ -1403,7 +1447,7 @@ void setup() {
     server.begin();
     
     startOTA();
-    sendMQTTDiscovery();
+    //sendMQTTDiscovery();
     delay(1000);
 }
 

@@ -2,7 +2,8 @@
     "files.associations": {
         "new": "cpp",
         "array": "cpp",
-        "string": "cpp"
+        "string": "cpp",
+        "cmath": "cpp"
     },
     "cmake.sourceDirectory": "C:/OneDrive/Projects/Electronics/ESP IoT Monitor/.pio/libdeps/esp_wroom_02/Adafruit BusIO"
 }
