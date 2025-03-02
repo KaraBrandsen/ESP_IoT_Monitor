@@ -29,7 +29,7 @@
 #include "LittleFS.h"
 
 #define DEVICE_NAME         "iot-monitor-1"
-#define WIFI_SSID           "LAN_2.4G"
+#define WIFI_SSID           "WLAN_2.4G"
 #define WIFI_PASSWORD       "**********"
 #define PRIMARY_NTP_SERVER  "nl.pool.ntp.org"
 #define BACKUP_NTP_SERVER   "igubu.saix.net"
@@ -48,6 +48,7 @@
 #define PULSE_CONNECTED     false
 #define SLEEP_MODE_ACTIVE   true
 #define LEGACY_DEVICE       true
+#define FIRST_BOOT          false
 
 #define PCF8574_ADDRESS     0x3A
 #define LM75_ADDRESS        0x49
@@ -161,6 +162,7 @@ typedef struct{
         float pulse_cumulative_total_energy;
     #endif
 
+    int lastWake;
     int run_count;
 }rtc_data_struct;
 #endif
@@ -184,6 +186,7 @@ PCF857x pcf8574(PCF8574_ADDRESS, &Wire);
         #if PULSE_CONNECTED
             0.0,
         #endif
+        0,
         0
         };
     rtc_data_struct *rtc_data = &initial_struct;
@@ -318,7 +321,7 @@ void setLed(int index, int brightness, int colour){
 }
 
 int checkWifi(){
-    debug_print("Checking Wifi");
+    debug_print("Checking Wifi State");
     int connection_time = 0;
 
     if(WiFi.status() != WL_CONNECTED)
@@ -330,9 +333,9 @@ int checkWifi(){
     while (WiFi.status() != WL_CONNECTED) {
         if(connection_time == settings.timeout){
             setLed(0, 10, 0XFF0000);
-            settings.valid_wifi = false;
-            EEPROM.put(0x0, settings);
-            EEPROM.commit();
+            //settings.valid_wifi = false;
+            //EEPROM.put(0x0, settings);
+            //EEPROM.commit();
             ESP.restart();
             break;
         }
@@ -354,7 +357,7 @@ int checkWifi(){
         EEPROM.put(0x0, settings);
         EEPROM.commit();
     }
-    debug_print("Wifi Connected - " + WiFi.localIP().toString());
+    debug_print("Wifi Connected - " + WiFi.localIP().toString() + ", RSSI: " + String(WiFi.RSSI()));
     return 1;
 }
 
@@ -499,10 +502,6 @@ void getData(){
     data.ip_address = WiFi.localIP().toString();
     data.rssi = WiFi.RSSI();
     data.ssid = WiFi.SSID();
-
-    debug_print(String(data.rssi));
-    debug_print(data.ssid);
-    debug_print(data.ip_address);
 
     debug_print("Done Getting Data");
 }
@@ -839,6 +838,10 @@ void power_down(int seconds){
         digitalWrite(IO2_PIN, HIGH);
     #endif
 
+    rtc_data->lastWake = timeClient.getEpochTime();
+    rtc_data->run_count = run_count;
+    rtcMemory.save();
+    
     delay(10);
     ESP.deepSleep(seconds * 1e6);
 }
@@ -1104,9 +1107,46 @@ void notFound(AsyncWebServerRequest *request) {
 
 void setup() {
     Serial.begin(115200);
+    Serial.println(" ");
+    debug_print("------------------------Device Start-------------------------");
+
+    debug_print("---------------Loaded Previous State From RTC---------------");
+    #if SLEEP_MODE_ACTIVE
+    bool result = rtcMemory.begin();
+    if(result){
+
+        rtc_data = rtcMemory.getData();
+        if(result){
+            debug_print("Previous Data Found");
+            #if ADC_CONNECTED
+                //todo: fix data collection
+                data.cumulative_total_energy1 = rtc_data->cumulative_total_energy1;
+                data.cumulative_total_energy2 = rtc_data->cumulative_total_energy2;
+                data.cumulative_total_energy3 = rtc_data->cumulative_total_energy3;
+            #endif
+
+            #if PULSE_CONNECTED
+                data.pulse_cumulative_total_energy = rtc_data->pulse_cumulative_total_energy;
+            #endif
+
+            run_count = rtc_data->run_count;
+            
+        }
+    }
+    #endif
+    
+    debug_print("Last Wake: " + String(rtc_data->lastWake));
+    debug_print("Run Count: " + String(rtc_data->run_count));
+
     Wire.begin(SDA_PIN, SCL_PIN);
 
     EEPROM.begin(512);
+
+    #if FIRST_BOOT
+        EEPROM.put(0x0, settings);
+        EEPROM.commit();
+    #endif
+
     EEPROM.get(0x0, settings); 
     
     if(isnan(settings.timeout)){
@@ -1115,9 +1155,75 @@ void setup() {
         EEPROM.commit();
     }
 
-    debug_print("");
-    debug_print("Device boot.");
-    
+    int estimated_time = rtc_data->lastWake + settings.collection_interval - TIMEZONE_OFFSET;
+    debug_print("Setting Clock To: " + String(estimated_time) + " (Estimated Time)");
+    timeClient.setEpoch(estimated_time);
+
+    debug_print("-----------------Loaded Settings From EEPROM-----------------");
+    debug_print("SSID: " + String(settings.ssid));
+    debug_print("PSK: " + String(settings.password));
+    debug_print("Wifi Timeout: " + String(settings.timeout));
+    debug_print("Valid Wifi: " + String(settings.valid_wifi));
+    debug_print("DHCP: " + String(settings.use_dhcp));
+    debug_print("Hostname: " + String(settings.hostname));
+    debug_print("Broker: " + String(settings.mqtt_broker));
+    debug_print("Topic: " + String(settings.topic));
+    debug_print("Data Collection Interval: " + String(settings.collection_interval));
+    debug_print("Discovery Interval: " + String(settings.discovery_interval));
+
+
+    debug_print("------------------Initializing Wifi Config------------------");
+
+    if(!LittleFS.begin()){
+        debug_print("An Error has occurred while mounting SPIFFS");
+    }
+
+    if(settings.valid_wifi){
+        debug_print("Trying old wifi credentials");
+        debug_print("Connecting to: " + String(settings.ssid));
+        WiFi.mode(WIFI_STA);
+        WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+        WiFi.hostname(settings.hostname);
+        WiFi.begin(settings.ssid, settings.password);
+
+        checkWifi();
+    }
+    else{
+        debug_print("No valid wifi credentials");
+
+        WiFi.mode(WIFI_AP);
+        WiFi.setPhyMode(WIFI_PHY_MODE_11G);
+        WiFi.softAPConfig(IPAddress(192,168,0,1), IPAddress(192,168,0,1), IPAddress(255,255,255,0));
+        WiFi.softAP(settings.hostname, "12345678");
+        debug_print(WiFi.softAPIP().toString());
+    }
+
+    debug_print("Updating with actual time.");
+    timeClient.update();
+    int retry_count[] = {3, 1};
+
+    while(!timeClient.isTimeSet())
+    {
+        if(retry_count[0] == 0)
+        {
+            if(retry_count[1] == 0)
+            {
+                ESP.restart();
+            }
+            checkWifi();
+            log_error("NTP Error: Using backup server.");
+            timeClient.setPoolServerName(BACKUP_NTP_SERVER);
+            retry_count[0] = 3;
+            retry_count[1]--;
+        }
+
+        delay(3000);
+        timeClient.forceUpdate();
+        retry_count[0]--;
+    }
+
+    debug_print("----------------Initializing Hardware Config----------------");
+
     pinMode(LED_PIN, OUTPUT);
     pinMode(IO6_PIN, OUTPUT);
     pinMode(IO15_PIN, INPUT);
@@ -1152,55 +1258,6 @@ void setup() {
         attachInterrupt(digitalPinToInterrupt(IO2_PIN), PulseInterrupt, FALLING); 
         attachInterrupt(digitalPinToInterrupt(IO15_PIN), PulseInterrupt, FALLING);
     #endif
-
-    if(!LittleFS.begin()){
-        debug_print("An Error has occurred while mounting SPIFFS");
-    }
-
-    if(settings.valid_wifi){
-        debug_print("Trying old wifi credentials");
-        debug_print("Connecting to: " + String(settings.ssid));
-        WiFi.mode(WIFI_STA);
-        WiFi.setPhyMode(WIFI_PHY_MODE_11G);
-        WiFi.hostname(settings.hostname);
-        WiFi.begin(settings.ssid, settings.password);
-
-        checkWifi();
-        timeClient.forceUpdate();
-    }
-    else{
-        debug_print("No valid wifi credentials");
-        IPAddress local_IP(192,168,0,1);
-        IPAddress gateway(192,168,0,1);
-        IPAddress subnet(255,255,255,0);
-
-        WiFi.softAPConfig(local_IP, gateway, subnet);
-        WiFi.softAP(settings.hostname, "12345678");
-        debug_print(WiFi.softAPIP().toString());
-    }
-
-    timeClient.update();
-    int retry_count[] = {3, 1};
-
-    while(!timeClient.isTimeSet())
-    {
-        if(retry_count[0] == 0)
-        {
-            if(retry_count[1] == 0)
-            {
-                ESP.restart();
-            }
-            checkWifi();
-            log_error("NTP Error: Using backup server.");
-            timeClient.setPoolServerName(BACKUP_NTP_SERVER);
-            retry_count[0] = 3;
-            retry_count[1]--;
-        }
-
-        delay(3000);
-        timeClient.forceUpdate();
-        retry_count[0]--;
-    }
 
     #if ADC_CONNECTED
         ads1115.begin(ADC_ADDRESS);
@@ -1325,30 +1382,6 @@ void setup() {
         current_time,
         current_time
     };
-
-    #if SLEEP_MODE_ACTIVE
-        bool result = rtcMemory.begin();
-        if(result){
-
-            rtc_data = rtcMemory.getData();
-            if(result){
-                debug_print("Previous Data Found");
-                #if ADC_CONNECTED
-                    data.cumulative_total_energy1 = rtc_data->cumulative_total_energy1;
-                    data.cumulative_total_energy2 = rtc_data->cumulative_total_energy2;
-                    data.cumulative_total_energy3 = rtc_data->cumulative_total_energy3;
-                #endif
-
-                #if PULSE_CONNECTED
-                    data.pulse_cumulative_total_energy = rtc_data->pulse_cumulative_total_energy;
-                #endif
-
-                run_count = rtc_data->run_count;
-                debug_print(String("Staring run from: ") + String(run_count));
-            }
-        }
-        
-    #endif
 
     data.battery_voltage = read_voltage(10);
 
@@ -1496,8 +1529,7 @@ void loop() {
                 rtc_data->pulse_cumulative_total_energy = data.pulse_cumulative_total_energy;
             #endif
 
-            rtc_data->run_count = run_count;
-            rtcMemory.save();
+            
             power_down(settings.collection_interval);
         #else
             run_count++;
